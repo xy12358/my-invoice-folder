@@ -1,0 +1,455 @@
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+        <title>我的发票夹</title>
+        <link rel="shortcut icon" href="static/favicon.png">
+        <!-- 引入vuejs -->
+        <!-- <script src="https://unpkg.com/vue@3.2.33/dist/vue.global.js"></script> -->
+        <script src="static/vue.global.3.2.33.js"></script>
+        <!--引入element-plus css-->
+        <!-- <link rel="stylesheet" href="https://unpkg.com/element-plus@2.2.0/dist/index.css"> -->
+        <link rel="stylesheet" href="static/element-plus2.2.0/index.css">
+        <!--引入element-plus-->
+        <!-- <script src="https://unpkg.com/element-plus@2.2.0/dist/index.full.js"></script> -->
+        <script src="static/element-plus2.2.0/index.full.js"></script>
+        <!--引入element-plus中文国际化-->
+        <!-- <script src="https://unpkg.com/element-plus@2.2.0/dist/locale/zh-cn.js"></script> -->
+        <script src="static/element-plus2.2.0/zh-cn.js"></script>
+        <!--引入element-plus Icon-->
+        <!-- <script src="https://unpkg.com/@element-plus/icons-vue@1.1.4/dist/index.iife.min.js"></script> -->
+        <script src="static/element-plus2.2.0/icon.index.min.1.1.4.js"></script>
+        <!--引入axios-->
+        <script src="static/axios.min.0.27.2.js"></script>
+        <style>
+            body {
+                margin: 0;
+            }
+            .el-header {
+                --el-header-padding: 0 0;
+            }
+            .el-range-editor.el-input__inner {
+                padding: 0 5px;
+            }
+            .el-table .cell{
+                font-size: 14px;
+                padding: 0 6px;
+            }
+        </style>
+    </head>
+    <body style="display:none">
+        <div id="app">
+            <div>
+                <el-container>
+                    <el-header>
+                        <el-menu
+                            :default-active="activeMenuIndex"
+                            mode="horizontal"
+                            background-color="#545c64"
+                            text-color="#fff"
+                            active-text-color="#ffd04b"
+                            @select="handleMenuSelect"
+                        >
+                            <el-menu-item index="1"><el-icon><folder></folder></el-icon>发票夹</el-menu-item>
+                            <el-menu-item index="2"><el-icon><setting></setting></el-icon>设置</el-menu-item>
+                        </el-menu>
+                    </el-header>
+                    <el-main>
+                        <div v-show="activeMenuIndex==='1'">
+                            <el-form v-model="invoiceSearch"  :inline="true" style="margin-bottom: 0;">
+                                <el-form-item label="">
+                                    <el-radio-group v-model="invoiceSearch.timeType">
+                                    <el-radio-button label="printTime" >开票时间</el-radio-button>
+                                    <el-radio-button label="importTime" >导入时间</el-radio-button>
+                                    </el-radio-group>
+                                </el-form-item>
+                                <el-form-item label="">
+                                    <el-date-picker
+                                        v-model="invoiceSearch.value1"
+                                        type="monthrange"
+                                        range-separator="至"
+                                        start-placeholder="开始时间"
+                                        end-placeholder="结束时间"
+                                        style="width: 200px;"
+                                    />
+                                </el-form-item>
+                                <el-form-item label="">
+                                    <el-select v-model="invoiceSearch.purchaser_name" clearable placeholder="公司名">
+                                        <el-option
+                                        v-for="item in purchasers"
+                                        :key="item.name"
+                                        :label="item.name"
+                                        :value="item.name"
+                                        />
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item label="">
+                                    <el-select v-model="invoiceSearch.used" clearable placeholder="发票状态" style="width:100px">
+                                        <el-option
+                                        v-for="item in invoiceStatus"
+                                        :key="item.value"
+                                        :label="item.label"
+                                        :value="item.value"
+                                        />
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item label="">
+                                    <el-select v-model="invoiceSearch.feeType" multiple placeholder="费用类型" style="width:300px">
+                                        <el-option
+                                        v-for="item in feeTypes"
+                                        :key="item"
+                                        :label="item"
+                                        :value="item"
+                                        />
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item label="">
+                                    <el-button type="primary" ><el-icon style="margin-right:6px"><search></search></el-icon>搜索</el-button>
+                                    <el-button type="default"><el-icon style="margin-right:6px"><refresh-left></refresh-left></el-icon>重置</el-button>
+                                </el-form-item>
+                                
+                            </el-form>
+                            
+                            <el-divider style="margin: 0;"></el-divider>
+    
+                            <el-row style="margin: 18px 0 8px 0;">
+                                <el-col :span="24">
+                                    <el-button type="primary" plain v-on:click="handleClick" style="margin-bottom:10px">
+                                        <el-icon style="margin-right:6px"><folder-add></folder-add></el-icon>批量导入
+                                    </el-button>
+                                    <el-button type="success" plain v-on:click="handleClick" style="margin-bottom:10px">
+                                        <el-icon style="margin-right:6px"><plus></plus></el-icon>手动添加
+                                    </el-button>
+                                    <el-button type="danger" plain v-on:click="handleClick" style="margin-bottom:10px">
+                                        <el-icon style="margin-right:6px"><delete></delete></el-icon>删除
+                                    </el-button>
+                                    <el-dropdown style="margin:0 0 10px 12px">
+                                        <el-button type="warning" plain v-on:click="handleClick" style="margin-bottom:10px">
+                                            <el-icon style="margin-right:6px"><download></download></el-icon>导出
+                                            <el-icon class="el-icon--right"></el-icon><arrow-down></arrow-down></el-button>
+                                        <template #dropdown>
+                                            <el-dropdown-menu>
+                                                <el-dropdown-item v-on:click="handleClick">Excel报表</el-dropdown-item>
+                                                <el-dropdown-item>合并PDF发票</el-dropdown-item>
+                                            </el-dropdown-menu>
+                                        </template>
+                                    </el-dropdown>
+                                    
+                                    <el-dropdown style="margin:0 0 10px 12px">
+                                        <el-button type="">
+                                          设置费用类型<el-icon class="el-icon--right"><arrow-down></arrow-down></el-icon>
+                                        </el-button>
+                                        <template #dropdown>
+                                          <el-dropdown-menu>
+                                            <el-dropdown-item v-on:click="handleClick" v-for="item in feeTypes" :key="item">{{item}}</el-dropdown-item>
+                                          </el-dropdown-menu>
+                                        </template>
+                                    </el-dropdown>
+                                    <el-dropdown style="margin:0 0 10px 12px">
+                                        <el-button type="">
+                                            设置发票状态<el-icon class="el-icon--right"><arrow-down></arrow-down></el-icon>
+                                        </el-button>
+                                        <template #dropdown>
+                                            <el-dropdown-menu>
+                                                <el-dropdown-item v-on:click="handleClick">已使用</el-dropdown-item>
+                                                <el-dropdown-item>未使用</el-dropdown-item>
+                                            </el-dropdown-menu>
+                                        </template>
+                                    </el-dropdown>
+                                </el-col>
+                            </el-row>
+                            <div>
+                                <el-table :data="invoiceList">
+                                    <el-table-column type="selection" width="40"></el-table-column>
+                                    <el-table-column prop="date" label="添加日期" width="110" ></el-table-column>
+                                    <el-table-column prop="date" label="开票日期" width="110" ></el-table-column>
+                                    <el-table-column prop="purchaser_name" label="购买方"></el-table-column>
+                                    <el-table-column prop="seller_name" label="销售方" >
+                                        <template #default="scope">
+                                            <el-popover effect="light" trigger="hover" placement="top">
+                                              <template #default>
+                                                <div>名称: {{ scope.row.seller_name }}</div>
+                                                <div>税号: {{ scope.row.seller_tax_number }}</div>
+                                              </template>
+                                              <template #reference>
+                                                <el-tag>{{ scope.row.seller_name }}</el-tag>
+                                              </template>
+                                            </el-popover>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="service_type" label="项目类型"  ></el-table-column>
+                                    <el-table-column prop="total" label="价税合计" width="100" ></el-table-column>
+                                    <el-table-column prop="code" label="发票代码" width="130" ></el-table-column>
+                                    <el-table-column prop="number" label="发票号码" width="100" ></el-table-column>
+                                    <el-table-column prop="check_code" label="校验码" width="190" ></el-table-column>
+                                    <el-table-column prop="fee_type" label="费用类型" width="120"></el-table-column>
+                                    <el-table-column prop="used" label="发票状态" width="80" ></el-table-column>
+                                    <!-- <el-table-column prop="address" label="Address"></el-table-column> -->
+                                    <el-table-column label="操作" width="135">
+                                        <template #default="scope">
+                                          <el-button size="small" @click="handleEdit(scope.$index, scope.row)">修改</el-button>
+                                          <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">删除</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                            <div style="margin-top: 18px;">
+                                <el-pagination
+                                  v-model:currentPage="currentPage"
+                                  v-model:page-size="pageSize"
+                                  :page-sizes="[10, 20, 50]"
+                                  small="small"
+                                  background="background"
+                                  layout="total, sizes, prev, pager, next"
+                                  :total="50"
+                                />
+                                <!--
+                                  @size-change="handleSizeChange"
+                                  @current-change="handleCurrentChange"
+                                -->
+                            </div>
+                        </div>
+                        <div v-show="activeMenuIndex==='2'">
+                            <el-collapse v-model="activeNames" @change="handleChange">
+                                <el-collapse-item title="发票抬头" name="1" >
+                                    <div>
+                                        <el-button type="primary" v-on:click="purchaserDialogVisible=true">
+                                            <el-icon style="margin-right:6px"><plus></plus></el-icon>添加抬头
+                                        </el-button>
+                                        <el-tag type="success" style="margin-left:10px">
+                                            <el-icon><warning></warning></el-icon>
+                                            用于校验有效发票抬头
+                                        </el-tag>
+                                    </div>
+                                    <div>
+                                        <el-table :data="purchasers" table-layout="auto">
+                                            <el-table-column prop="name" label="名称" width="300"></el-table-column>
+                                            <el-table-column prop="tax_number" label="税号" width="200" ></el-table-column>
+                                            <el-table-column prop="address" label="单位地址"></el-table-column>
+                                            <el-table-column prop="phone" label="电话号码" ></el-table-column>
+                                            <el-table-column prop="bank_name" label="开户银行"  ></el-table-column>
+                                            <el-table-column prop="bank_account" label="银行账号" ></el-table-column>
+                                            <el-table-column label="操作" width="135">
+                                                <template #default="scope">
+                                                <el-button size="small" @click="handleEdit(scope.$index, scope.row)">修改</el-button>
+                                                <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">删除</el-button>
+                                                </template>
+                                            </el-table-column>
+                                        </el-table>
+                                    </div>
+                                </el-collapse-item>
+                                <el-collapse-item title="费用类型" name="2">
+                                  <div>
+                                      <el-tag
+                                          v-for="tag in feeTypes"
+                                          :key="tag"
+                                          style="margin: 4px 8px;"
+                                          closable
+                                          :disable-transitions="false"
+                                          @close="handleClose(tag)"
+                                      >
+                                          {{ tag }}
+                                      </el-tag>
+                                      <el-input
+                                          style="width: 100px"
+                                          v-if="inputVisible"
+                                          v-model="inputValue"
+                                          size="small"
+                                          @keyup.enter="handleInputConfirm"
+                                          @blur="handleInputConfirm"
+                                          ref="tagInput"
+                                      ></el-input>
+                                      <el-button v-else size="small" @click="showInput">
+                                          + 添加费用类型
+                                      </el-button>
+                                  </div>
+                                </el-collapse-item>
+                            </el-collapse>
+                        </div>
+                    </el-main>
+                </el-container>
+            </div>
+            <el-dialog v-model="purchaserDialogVisible"  :title="purchaserDialogTitle" width="500">
+                <el-form :model="purchaser">
+                  <el-form-item label="名称" label-width="150">
+                    <el-input v-model="purchaser.name" clearable placeholder="单位名称或个人姓名（必填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="税号" label-width="150">
+                    <el-input v-model="purchaser.tax_number" clearable placeholder="税号（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="单位地址" label-width="150">
+                    <el-input v-model="purchaser.address" clearable placeholder="单位地址（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="电话号码" label-width="150">
+                    <el-input v-model="purchaser.phone" clearable placeholder="电话号码（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="开户银行" label-width="150">
+                    <el-input v-model="purchaser.bank_name" clearable  placeholder="开户银行（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="银行账号" label-width="150">
+                    <el-input v-model="purchaser.bank_account" clearable placeholder="银行账号（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                </el-form>
+                <template #footer>
+                  <span class="dialog-footer">
+                    <el-button type="primary" @click="purchaserDialogVisible = false">确定</el-button>
+                    <el-button @click="purchaserDialogVisible = false">取消</el-button>
+                  </span>
+                </template>
+            </el-dialog>
+        </div>
+        
+        <script>
+            const App = {
+                setup(){
+                    const message = Vue.ref("Hello Element Plus");
+                    const activeMenuIndex = Vue.ref('1');
+                    const invoiceSearch = Vue.ref({
+                            timeType: 'printTime',
+                            value1: ['2022-01', '2023-01'],
+                            value2: '',
+                            feeType: '',
+                        });
+                    const pageSize = Vue.ref(20);
+                    const currentPage = Vue.ref(1);
+                    const activeNames = Vue.ref(['1','2']);
+                    const invoiceStatus = Vue.ref([{
+                            value: '1',
+                            label: '已使用',
+                        },
+                        {
+                            value: '0',
+                            label: '未使用',
+                        }]);
+                    const purchasers = Vue.ref([
+                            {
+                                name: '购买方(中国)网络技术有限公司',
+                                tax_number: '91320301MA1FQ5XXX',
+                                address: '广东省深圳市南山区深南大道',
+                                phone: '010-88888888',
+                                bank_name: '中国工商银行',
+                                bank_account: '62220231234567899999',
+                            },
+                        ]);
+                    const invoiceList = Vue.ref([
+                            {
+                                date: '2012/05/11',
+                                purchaser_name: '购买方(中国)网络技术有限公司',
+                                seller_name: '销售方信息服务有限公司',
+                                seller_tax_number: '91320301MA1FQ5000',
+                                service_type: '*经纪代理服务*机票代理服务',
+                                total: '10000.00',
+                                code: '011001700123',
+                                number: '93072888',
+                                check_code: '07963653756209149998',
+                                fee_type: '差旅费',
+                                used: '已使用',
+                                name: '差旅费',
+                                address: 'No. 189, Grove St, Los Angeles',
+                            },
+                            {
+                                date: '2012/05/11',
+                                purchaser_name: '购买方(中国)网络技术有限公司',
+                                seller_name: '销售方信息服务有限公司',
+                                seller_tax_number: '91320301MA1FQ5000',
+                                service_type: '*经纪代理服务*机票代理服务',
+                                total: '10000.00',
+                                code: '011001700123',
+                                number: '93072888',
+                                check_code: '07963653756209149998',
+                                fee_type: '差旅费',
+                                used: '已使用',
+                                name: '差旅费',
+                                address: 'No. 189, Grove St, Los Angeles',
+                            },
+                        ]);
+                    const feeTypes = Vue.ref(['交通','住宿','餐饮','通讯','办公','快递','其他']);
+                    const tagInput = Vue.ref()
+                    const inputValue = Vue.ref('');
+                    const inputVisible = Vue.ref(false);
+                    const purchaserDialogVisible = Vue.ref(false);
+                    const purchaserDialogTitle = Vue.ref('添加发票抬头')
+                    const purchaser = Vue.reactive({});
+                    const handleMenuSelect = (key, keyPath) => {
+                        activeMenuIndex.value = key;
+                    };
+                    const handleClick = () => {
+                        ElementPlus.ElMessageBox.confirm(
+                            '点击按钮XX,是否确定XXX?',
+                            '系统提示',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'warning',
+                            }
+                        )
+                            .then(() => {
+                                ElementPlus.ElMessage({
+                                type: 'success',
+                                message: 'XXX成功',
+                            })
+                            })
+                            .catch(() => {
+                                ElementPlus.ElMessage({
+                                type: 'info',
+                                message: 'XXXX取消',
+                            })
+                            })
+                    };
+                    const handleEdit = (index, row) => {
+                        console.log(index, row);
+                    };
+                    const handleChange = (val) => console.log(val);
+                    const handleClose = (tag) =>{
+                        feeTypes.value.splice(feeTypes.value.indexOf(tag), 1);
+                    };
+                    const showInput = () =>{
+                        inputVisible.value = true
+                        Vue.nextTick(() => {
+                            tagInput.value.focus()
+                        })
+                    };
+                    const handleInputConfirm = () => {
+                        if (inputValue.value) {
+                            feeTypes.value.push(inputValue.value)
+                        }
+                        inputVisible.value = false
+                        inputValue.value = ''
+                    };
+                    return {
+                        message,
+                        activeMenuIndex,
+                        invoiceSearch,
+                        pageSize,
+                        currentPage,
+                        activeNames,
+                        invoiceStatus,
+                        purchasers,
+                        invoiceList,
+                        feeTypes,
+                        tagInput,
+                        inputValue,
+                        inputVisible,
+                        purchaserDialogVisible,
+                        purchaser,
+                        purchaserDialogTitle,
+                        handleMenuSelect,
+                        handleClick,
+                        handleEdit,
+                        handleChange,
+                        handleClose,
+                        showInput,
+                        handleInputConfirm,
+                    }
+                },
+            };
+            const app = Vue.createApp(App);
+            app.use(ElementPlus, {locale: ElementPlusLocaleZhCn,});
+            for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+                app.component(key, component);
+            }
+            vm = app.mount("#app");
+            window.onload = () => document.body.style.display='block'
+        </script>
+    </body>
+</html>

@@ -1,0 +1,15 @@
+# 日志配置
+loguru:
+  format: '{time:YYYY-MM-DDTHH:mm:ss.SSSZ} {level} tid[{extra[tid]}] {message}'
+  level: DEBUG
+  file: logs/application.log
+  rotation: 00:00
+  retention: 30 days
+
+# uvicorn设置
+uvicorn:
+  host: 127.0.0.1
+  port: 8088
+
+# 等待web服务启动时间，服务启动后自动打开浏览器
+waitWebServerTime: 10

@@ -1,0 +1,6 @@
+pdfplumber
+PyPDF4
+openpyxl
+fastapi
+uvicorn
+loguru
