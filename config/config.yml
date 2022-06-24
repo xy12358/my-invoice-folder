@@ -11,5 +11,13 @@ uvicorn:
   host: 127.0.0.1
   port: 8088
 
+# 数据库配置
+database:
+  url: 'sqlite:///invoice.db?check_same_thread=False'
+  password: '112358'
+  echo: true
+
 # 等待web服务启动时间，服务启动后自动打开浏览器
 waitWebServerTime: 10
+# 上传文件路径
+uploadPath: upload

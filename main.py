@@ -1,24 +1,24 @@
-from xmlrpc.client import Boolean
 import uvicorn
-import multiprocessing
+from multiprocessing import freeze_support
 from multiprocessing import Process
 import time,sys
-from config import appConfig
-from log import logger
 import requests
 import webbrowser
+
+from config import appConfig
+from log import logger
 
 # 启动WebAPI
 def runUvicorn():
     uvicorn.run("webapi:app", host=appConfig.uvicorn["host"], port=appConfig.uvicorn["port"], reload=False, log_config='config/uvicornLog.json', access_log=True, workers=1)
 
 # 打开主页
-def openBrowser(url: str) -> Boolean:
+def openBrowser(url: str) -> bool:
     webbrowser.open(url)
     return True
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()  
+    freeze_support()  
     
     logger.info("application is starting...")
 

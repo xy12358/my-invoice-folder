@@ -58,23 +58,25 @@
                         <div v-show="activeMenuIndex==='1'">
                             <el-form v-model="invoiceSearch"  :inline="true" style="margin-bottom: 0;">
                                 <el-form-item label="">
-                                    <el-radio-group v-model="invoiceSearch.timeType">
-                                    <el-radio-button label="printTime" >开票时间</el-radio-button>
-                                    <el-radio-button label="importTime" >导入时间</el-radio-button>
+                                    <el-radio-group v-model="invoiceSearch.dateType">
+                                    <el-radio-button label="0" >开票时间</el-radio-button>
+                                    <el-radio-button label="1" >导入时间</el-radio-button>
                                     </el-radio-group>
                                 </el-form-item>
                                 <el-form-item label="">
                                     <el-date-picker
-                                        v-model="invoiceSearch.value1"
+                                        v-model="invoiceSearch.date"
                                         type="monthrange"
                                         range-separator="至"
                                         start-placeholder="开始时间"
                                         end-placeholder="结束时间"
                                         style="width: 200px;"
+                                        format="YYYY-MM"
+                                        value-format="YYYY-MM"
                                     />
                                 </el-form-item>
                                 <el-form-item label="">
-                                    <el-select v-model="invoiceSearch.purchaser_name" clearable placeholder="公司名">
+                                    <el-select v-model="invoiceSearch.purchaserName" clearable placeholder="公司名">
                                         <el-option
                                         v-for="item in purchasers"
                                         :key="item.name"
@@ -104,8 +106,8 @@
                                     </el-select>
                                 </el-form-item>
                                 <el-form-item label="">
-                                    <el-button type="primary" ><el-icon style="margin-right:6px"><search></search></el-icon>搜索</el-button>
-                                    <el-button type="default"><el-icon style="margin-right:6px"><refresh-left></refresh-left></el-icon>重置</el-button>
+                                    <el-button type="primary" @click="handleInvoiceQuery(true)"><el-icon style="margin-right:6px"><search></search></el-icon>搜索</el-button>
+                                    <el-button type="default" @click="handleResetInvoiceQuery"><el-icon style="margin-right:6px"><refresh-left></refresh-left></el-icon>重置</el-button>
                                 </el-form-item>
                                 
                             </el-form>
@@ -114,23 +116,23 @@
     
                             <el-row style="margin: 18px 0 8px 0;">
                                 <el-col :span="24">
-                                    <el-button type="primary" plain v-on:click="handleClick" style="margin-bottom:10px">
+                                    <el-button type="primary" plain v-on:click="uploadInvoiceDialogVisible=true" style="margin-bottom:10px">
                                         <el-icon style="margin-right:6px"><folder-add></folder-add></el-icon>批量导入
                                     </el-button>
-                                    <el-button type="success" plain v-on:click="handleClick" style="margin-bottom:10px">
+                                    <el-button type="success" plain v-on:click="handleAddInvoice(invoiceForm)" style="margin-bottom:10px">
                                         <el-icon style="margin-right:6px"><plus></plus></el-icon>手动添加
                                     </el-button>
-                                    <el-button type="danger" plain v-on:click="handleClick" style="margin-bottom:10px">
+                                    <el-button type="danger" plain v-on:click="handleMultipleInvoiceDelete" style="margin-bottom:10px">
                                         <el-icon style="margin-right:6px"><delete></delete></el-icon>删除
                                     </el-button>
                                     <el-dropdown style="margin:0 0 10px 12px">
-                                        <el-button type="warning" plain v-on:click="handleClick" style="margin-bottom:10px">
+                                        <el-button type="warning" plain style="margin-bottom:10px">
                                             <el-icon style="margin-right:6px"><download></download></el-icon>导出
                                             <el-icon class="el-icon--right"></el-icon><arrow-down></arrow-down></el-button>
                                         <template #dropdown>
                                             <el-dropdown-menu>
-                                                <el-dropdown-item v-on:click="handleClick">Excel报表</el-dropdown-item>
-                                                <el-dropdown-item>合并PDF发票</el-dropdown-item>
+                                                <el-dropdown-item v-on:click="handleExportExcel">Excel报表</el-dropdown-item>
+                                                <el-dropdown-item v-on:click="handleExportPdf">合并PDF发票</el-dropdown-item>
                                             </el-dropdown-menu>
                                         </template>
                                     </el-dropdown>
@@ -141,7 +143,7 @@
                                         </el-button>
                                         <template #dropdown>
                                           <el-dropdown-menu>
-                                            <el-dropdown-item v-on:click="handleClick" v-for="item in feeTypes" :key="item">{{item}}</el-dropdown-item>
+                                            <el-dropdown-item v-on:click="handleUpdateInvoiceFeeType(feeType)" v-for="feeType in feeTypes" :key="feeType">{{feeType}}</el-dropdown-item>
                                           </el-dropdown-menu>
                                         </template>
                                     </el-dropdown>
@@ -151,69 +153,87 @@
                                         </el-button>
                                         <template #dropdown>
                                             <el-dropdown-menu>
-                                                <el-dropdown-item v-on:click="handleClick">已使用</el-dropdown-item>
-                                                <el-dropdown-item>未使用</el-dropdown-item>
+                                                <el-dropdown-item v-on:click="handleUpdateInvoiceStatus(1)">已使用</el-dropdown-item>
+                                                <el-dropdown-item v-on:click="handleUpdateInvoiceStatus(0)">未使用</el-dropdown-item>
                                             </el-dropdown-menu>
                                         </template>
                                     </el-dropdown>
                                 </el-col>
                             </el-row>
                             <div>
-                                <el-table :data="invoiceList">
+                                <el-table :data="invoiceList" @selection-change="handleSelectionChange">
                                     <el-table-column type="selection" width="40"></el-table-column>
-                                    <el-table-column prop="date" label="添加日期" width="110" ></el-table-column>
+                                    <el-table-column prop="timestamp" label="添加日期" width="110" ></el-table-column>
                                     <el-table-column prop="date" label="开票日期" width="110" ></el-table-column>
-                                    <el-table-column prop="purchaser_name" label="购买方"></el-table-column>
-                                    <el-table-column prop="seller_name" label="销售方" >
+                                    <el-table-column prop="purchaserName" label="购买方"></el-table-column>
+                                    <el-table-column prop="sellerName" label="销售方" >
                                         <template #default="scope">
                                             <el-popover effect="light" trigger="hover" placement="top">
                                               <template #default>
-                                                <div>名称: {{ scope.row.seller_name }}</div>
-                                                <div>税号: {{ scope.row.seller_tax_number }}</div>
+                                                <div>名称: {{ scope.row.sellerName }}</div>
+                                                <div>税号: {{ scope.row.sellerTaxNumber }}</div>
                                               </template>
                                               <template #reference>
-                                                <el-tag>{{ scope.row.seller_name }}</el-tag>
+                                                <el-tag>{{ scope.row.sellerName }}</el-tag>
                                               </template>
                                             </el-popover>
                                         </template>
                                     </el-table-column>
-                                    <el-table-column prop="service_type" label="项目类型"  ></el-table-column>
-                                    <el-table-column prop="total" label="价税合计" width="100" ></el-table-column>
+                                    <el-table-column prop="serviceType" label="项目类型"  ></el-table-column>
+                                    <el-table-column prop="total" label="价税合计" width="100" align="right">
+                                        <template #default="scope">
+                                            <el-popover effect="light" trigger="hover" placement="top">
+                                              <template #default>
+                                                <div>金额: {{ scope.row.totalAmount.toFixed(2) }}</div>
+                                                <div>税额: {{ scope.row.totalTax.toFixed(2) }}</div>
+                                                <div>税率: {{ scope.row.taxRate.toFixed(2) }}</div>
+                                              </template>
+                                              <template #reference>
+                                                <el-tag type="danger">{{ scope.row.total.toFixed(2) }}</el-tag>
+                                              </template>
+                                            </el-popover>
+                                        </template>
+                                    </el-table-column>
                                     <el-table-column prop="code" label="发票代码" width="130" ></el-table-column>
                                     <el-table-column prop="number" label="发票号码" width="100" ></el-table-column>
-                                    <el-table-column prop="check_code" label="校验码" width="190" ></el-table-column>
-                                    <el-table-column prop="fee_type" label="费用类型" width="120"></el-table-column>
-                                    <el-table-column prop="used" label="发票状态" width="80" ></el-table-column>
+                                    <el-table-column prop="checkCode" label="校验码" width="190" ></el-table-column>
+                                    <el-table-column prop="feeType" label="费用类型" width="120"></el-table-column>
+                                    <el-table-column prop="used" label="发票状态" width="80" >
+                                        <template #default="scope">
+                                            {{ scope.row.used==='1'? '已使用' : '未使用' }}
+                                        </template>
+                                    </el-table-column>
                                     <!-- <el-table-column prop="address" label="Address"></el-table-column> -->
                                     <el-table-column label="操作" width="135">
                                         <template #default="scope">
-                                          <el-button size="small" @click="handleEdit(scope.$index, scope.row)">修改</el-button>
-                                          <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">删除</el-button>
+                                            <el-button type="primary" title="修改" circle @click="handleInvoiceEdit(scope.row)"><el-icon><edit></edit></el-icon></el-button>
+                                            <el-button type="danger" title="删除" circle @click="handleInvoiceDelete(scope.row)"><el-icon><delete></delete></el-icon></el-button>
+                                            <el-button v-if="scope.row.filePath!==''" type="success" title="查看" circle @click="handleInvoiceView(scope.row)"><el-icon><Document></Document></el-icon></el-button>
+                                            <!-- <el-icon color="#409eff" size="20" title="修改" v-on:click="handleInvoiceEdit(scope.row)"><edit></edit></el-icon> -->
+                                            <!-- <el-icon color="#f56c6c" size="20" title="删除" style="padding:0 10px" v-on:click="handleInvoiceDelete(scope.row)"><delete></delete></el-icon> -->
                                         </template>
                                     </el-table-column>
                                 </el-table>
                             </div>
                             <div style="margin-top: 18px;">
                                 <el-pagination
-                                  v-model:currentPage="currentPage"
-                                  v-model:page-size="pageSize"
-                                  :page-sizes="[10, 20, 50]"
+                                  v-model:current-page="page.currentPage"
+                                  v-model:page-size="page.pageSize"
+                                  :page-sizes="[5, 10, 20, 50]"
                                   small="small"
                                   background="background"
                                   layout="total, sizes, prev, pager, next"
-                                  :total="50"
+                                  :total="page.totalRecords"
+                                  @size-change="handlePageSizeChange"
+                                  @current-change="handleCurrentPageChange"
                                 />
-                                <!--
-                                  @size-change="handleSizeChange"
-                                  @current-change="handleCurrentChange"
-                                -->
                             </div>
                         </div>
                         <div v-show="activeMenuIndex==='2'">
-                            <el-collapse v-model="activeNames" @change="handleChange">
+                            <el-collapse v-model="activeNames">
                                 <el-collapse-item title="发票抬头" name="1" >
                                     <div>
-                                        <el-button type="primary" v-on:click="purchaserDialogVisible=true">
+                                        <el-button type="primary" v-on:click="handleAddPurchaser(purchaserForm)">
                                             <el-icon style="margin-right:6px"><plus></plus></el-icon>添加抬头
                                         </el-button>
                                         <el-tag type="success" style="margin-left:10px">
@@ -224,15 +244,15 @@
                                     <div>
                                         <el-table :data="purchasers" table-layout="auto">
                                             <el-table-column prop="name" label="名称" width="300"></el-table-column>
-                                            <el-table-column prop="tax_number" label="税号" width="200" ></el-table-column>
+                                            <el-table-column prop="taxNumber" label="税号" width="200" ></el-table-column>
                                             <el-table-column prop="address" label="单位地址"></el-table-column>
                                             <el-table-column prop="phone" label="电话号码" ></el-table-column>
-                                            <el-table-column prop="bank_name" label="开户银行"  ></el-table-column>
-                                            <el-table-column prop="bank_account" label="银行账号" ></el-table-column>
+                                            <el-table-column prop="bankName" label="开户银行"  ></el-table-column>
+                                            <el-table-column prop="bankAccount" label="银行账号" ></el-table-column>
                                             <el-table-column label="操作" width="135">
                                                 <template #default="scope">
-                                                <el-button size="small" @click="handleEdit(scope.$index, scope.row)">修改</el-button>
-                                                <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">删除</el-button>
+                                                <el-button size="small" @click="handlePurchaserEdit(scope.row)">修改</el-button>
+                                                <el-button size="small" type="danger" @click="handlePurchaserDelete(scope.row)">删除</el-button>
                                                 </template>
                                             </el-table-column>
                                         </el-table>
@@ -246,20 +266,20 @@
                                           style="margin: 4px 8px;"
                                           closable
                                           :disable-transitions="false"
-                                          @close="handleClose(tag)"
+                                          @close="handleFeeTypeDelete(tag)"
                                       >
                                           {{ tag }}
                                       </el-tag>
                                       <el-input
                                           style="width: 100px"
-                                          v-if="inputVisible"
-                                          v-model="inputValue"
+                                          v-if="feeTypeInputVisible"
+                                          v-model="feeTypeInputValue"
                                           size="small"
-                                          @keyup.enter="handleInputConfirm"
-                                          @blur="handleInputConfirm"
-                                          ref="tagInput"
+                                          @keyup.enter="handleFeeTypeInputConfirm"
+                                          @blur="handleFeeTypeInputConfirm"
+                                          ref="feeTypeInput"
                                       ></el-input>
-                                      <el-button v-else size="small" @click="showInput">
+                                      <el-button v-else size="small" @click="showFeeTypeInput">
                                           + 添加费用类型
                                       </el-button>
                                   </div>
@@ -269,49 +289,246 @@
                     </el-main>
                 </el-container>
             </div>
-            <el-dialog v-model="purchaserDialogVisible"  :title="purchaserDialogTitle" width="500">
-                <el-form :model="purchaser">
-                  <el-form-item label="名称" label-width="150">
-                    <el-input v-model="purchaser.name" clearable placeholder="单位名称或个人姓名（必填）" style="width:250px"></el-input>
+            <el-dialog v-model="invoiceDialogVisible" :title="invoiceDialogTitle" width="785">
+                <el-form :model="invoice" ref="invoiceForm" :inline="true">
+                  <el-form-item label="发票类型" label-width="80" prop="type"
+                    :rules="[{required: true, message: '请选择发票类型', trigger: ['blur'], }, ]"
+                  >
+                    <el-select v-model="invoice.type" placeholder="发票类型" style="width:120px">
+                        <el-option value="普通发票" selected="true"></el-option>
+                        <el-option value="专用发票"></el-option>
+                    </el-select>
                   </el-form-item>
-                  <el-form-item label="税号" label-width="150">
-                    <el-input v-model="purchaser.tax_number" clearable placeholder="税号（选填）" style="width:250px"></el-input>
+                  <el-form-item label="发票代码" label-width="80" prop="code"
+                    :rules="[{pattern:/^\d*$/, message: '请输入正确的发票代码', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.code" clearable placeholder="发票代码" style="width:140px"></el-input>
                   </el-form-item>
-                  <el-form-item label="单位地址" label-width="150">
-                    <el-input v-model="purchaser.address" clearable placeholder="单位地址（选填）" style="width:250px"></el-input>
+                  <el-form-item label="发票号码" label-width="88" prop="number"
+                    :rules="[{required: true, message: '请填写发票号码', trigger: ['blur','change']}, 
+                             {pattern:/^\d*$/, message: '请输入正确的发票号码', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.number" clearable placeholder="发票号码" style="width:140px"></el-input>
                   </el-form-item>
-                  <el-form-item label="电话号码" label-width="150">
-                    <el-input v-model="purchaser.phone" clearable placeholder="电话号码（选填）" style="width:250px"></el-input>
+                  <el-form-item label="开票日期" label-width="80" prop="date"
+                    :rules="[{required: true, message: '请填写开票日期', trigger: ['blur','change']}, 
+                             {pattern:/^\d{4}-\d{2}-\d{2}$/, message: '请输入正确的开票日期', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.date" clearable placeholder="yyyy-MM-dd" style="width:120px"></el-input>
                   </el-form-item>
-                  <el-form-item label="开户银行" label-width="150">
-                    <el-input v-model="purchaser.bank_name" clearable  placeholder="开户银行（选填）" style="width:250px"></el-input>
+                  <el-form-item label="校验码" label-width="80" prop="checkCode"
+                    :rules="[{pattern:/^\d{6,}$/, message: '请输入正确的校验码', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.checkCode" clearable placeholder="至少填写后六位" style="width:140px"></el-input>
                   </el-form-item>
-                  <el-form-item label="银行账号" label-width="150">
-                    <el-input v-model="purchaser.bank_account" clearable placeholder="银行账号（选填）" style="width:250px"></el-input>
+                  <el-form-item label="机器编号" label-width="88" prop="machineNumber"
+                    :rules="[{pattern:/^\d*$/, message: '请输入正确的机器编号', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.machineNumber" clearable placeholder="机器编号" style="width:140px"></el-input>
+                  </el-form-item>
+
+                  <el-form-item label="购买方名称" label-width="100" prop="purchaserName" style="margin-right:12px"
+                    :rules="[{required: true, message: '请输入单位名称或个人姓名', trigger: ['blur','change'], }, ]"
+                  >
+                    <el-input v-model="invoice.purchaserName" clearable placeholder="单位名称或个人姓名" style="width:300px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="购买方税号" label-width="100" prop="purchaserTaxNumber"
+                    :rules="[{pattern:/^\w{18}$/, message: '请输入正确的税号', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.purchaserTaxNumber" clearable placeholder="税号" style="width:200px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="购买方地址及电话" label-width="140" prop="purchaserAddress"
+                    :rules="[{max: 100, message: '单位地址电话长度不超过100个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.purchaserAddress" clearable placeholder="单位地址及电话" style="width:570px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="购买方开户行及账号" label-width="140" prop="purchaserBank"
+                    :rules="[{max: 100, message: '开户银行长度不超过100个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.purchaserBank" clearable  placeholder="开户行及账号" style="width:570px"></el-input>
+                  </el-form-item>
+
+                  <el-form-item label="应税服务名称" label-width="100" prop="serviceType" 
+                    :rules="[{max: 50, message: '服务名称长度不超过50个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.serviceType" clearable placeholder="服务名称" style="width:205px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="费用类型" label-width="80" prop="feeType" >
+                    <el-select v-model="invoice.feeType"  style="width:90px">
+                        <el-option
+                        v-for="item in feeTypes"
+                        :key="item"
+                        :label="item"
+                        :value="item"
+                        />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="发票状态" label-width="80" prop="used" >
+                    <el-select v-model="invoice.used"  style="width:90px">
+                        <el-option
+                            v-for="item in invoiceStatus"
+                            :key="item.value"
+                            :label="item.label"
+                            :value="item.value"
+                        />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="合计金额" label-width="80" prop="totalAmount" style="margin-right:12px"
+                    :rules="[{required: true, message: '请填写合计金额', trigger: ['blur','change']}, 
+                             {pattern:/^\d+(\.\d{1,2})?$/, message: '请输入正确金额', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.totalAmount" clearable placeholder="合计金额" style="width:100px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="合计税额" label-width="80" prop="totalTax" style="margin-right:12px"
+                    :rules="[{required: true, message: '请填写合计税额', trigger: ['blur','change']}, 
+                             {pattern:/^\d+(\.\d{1,2})?$/, message: '请输入正确金额', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.totalTax" clearable placeholder="合计税额" style="width:95px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="税率" label-width="60" prop="taxRate" style="margin-right:12px"
+                    :rules="[{required: true, message: '请填写税率', trigger: ['blur','change']}, 
+                             {pattern:/^0(\.\d{1,2})?$/, message: '请输入正确税率(0.xx)', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.taxRate" clearable placeholder="税率" style="width:70px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="价税合计" label-width="80" prop="total"
+                    :rules="[{required: true, message: '请填写价税合计', trigger: ['blur','change']}, 
+                             {pattern:/^\d+(\.\d{1,2})?$/, message: '请输入正确金额', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.total" clearable placeholder="价税合计" style="width:110px"></el-input>
+                  </el-form-item>
+
+                  <el-form-item label="销售方名称" label-width="100" prop="sellerName" style="margin-right:12px"
+                    :rules="[{required: true, message: '请输入单位名称或个人姓名', trigger: ['blur','change'], }, ]"
+                  >
+                    <el-input v-model="invoice.sellerName" clearable placeholder="单位名称或个人姓名" style="width:300px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="销售方税号" label-width="100" prop="sellerTaxNumber"
+                    :rules="[{pattern:/^\w{18}$/, message: '请输入正确的税号', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.sellerTaxNumber" clearable placeholder="税号" style="width:200px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="销售方地址及电话" label-width="140" prop="sellerAddress"
+                    :rules="[{max: 100, message: '单位地址电话长度不超过100个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.sellerAddress" clearable placeholder="单位地址及电话" style="width:570px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="销售方开户行及账号" label-width="140" prop="sellerBank"
+                    :rules="[{max: 100, message: '开户银行长度不超过100个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.sellerBank" clearable  placeholder="开户行及账号" style="width:570px"></el-input>
+                  </el-form-item>
+
+                  <el-form-item label="备注" label-width="140" prop="remark"
+                    :rules="[{max: 200, message: '备注长度不超过200个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.remark" clearable  placeholder="备注" style="width:570px"></el-input>
+                  </el-form-item>
+
+                  <el-form-item label="收款人" label-width="60" prop="payee"
+                    :rules="[{max: 50, message: '收款人长度不超过50个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.payee" clearable  placeholder="收款人" style="width:155px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="复核" label-width="60" prop="reviewer"
+                    :rules="[{max: 50, message: '复核长度不超过50个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.reviewer" clearable  placeholder="复核" style="width:155px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="开票人" label-width="60" prop="drawer"
+                    :rules="[{max: 50, message: '开票人长度不超过50个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="invoice.drawer" clearable  placeholder="开票人" style="width:155px"></el-input>
                   </el-form-item>
                 </el-form>
                 <template #footer>
                   <span class="dialog-footer">
-                    <el-button type="primary" @click="purchaserDialogVisible = false">确定</el-button>
-                    <el-button @click="purchaserDialogVisible = false">取消</el-button>
+                    <el-button type="primary" @click="handelInvoiceCommit(invoiceForm)">确定</el-button>
+                    <el-button @click="invoiceDialogVisible=false">取消</el-button>
                   </span>
                 </template>
+            </el-dialog>
+            <el-dialog v-model="purchaserDialogVisible" :title="purchaserDialogTitle" width="500">
+                <el-form :model="purchaser" ref="purchaserForm">
+                  <el-form-item label="名称" label-width="150" prop="name"
+                    :rules="[{required: true, message: '请输入单位名称或个人姓名', trigger: ['blur','change'], }, ]"
+                  >
+                    <el-input v-model="purchaser.name" clearable placeholder="单位名称或个人姓名（必填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="税号" label-width="150" prop="taxNumber"
+                    :rules="[{pattern:/^\w{18}$/, message: '请输入正确的税号', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="purchaser.taxNumber" clearable placeholder="税号（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="单位地址" label-width="150" prop="address"
+                    :rules="[{max: 100, message: '单位地址长度不超过100个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="purchaser.address" clearable placeholder="单位地址（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="电话号码" label-width="150" prop="phone"
+                    :rules="[{pattern:/^0\d{2,3}-\d{6,8}$/, message: '请输入正确的电话号码', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="purchaser.phone" clearable placeholder="电话号码（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="开户银行" label-width="150" prop="bankName"
+                    :rules="[{max: 100, message: '开户银行长度不超过100个字', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="purchaser.bankName" clearable  placeholder="开户银行（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                  <el-form-item label="银行账号" label-width="150" prop="bankAccount"
+                    :rules="[{pattern:/^\d{12,24}$/, message: '请输入正确的银行账号', trigger: 'change', }, ]"
+                  >
+                    <el-input v-model="purchaser.bankAccount" clearable placeholder="银行账号（选填）" style="width:250px"></el-input>
+                  </el-form-item>
+                </el-form>
+                <template #footer>
+                  <span class="dialog-footer">
+                    <el-button type="primary" @click="handelPurchaserCommit(purchaserForm)">确定</el-button>
+                    <el-button @click="handelPurchaserCancel(purchaserForm)">取消</el-button>
+                  </span>
+                </template>
+            </el-dialog>
+            <el-dialog v-model="uploadInvoiceDialogVisible" @close="handleInvoiceDialogClose" title="批量导入发票" width="600">
+                <el-upload
+                    class="upload-demo"
+                    drag
+                    action="/api/v1/invoice/import"
+                    multiple
+                    accept="application/pdf"
+                    :disabled="uploadInvoiceDisabled"
+                    :file-list="uploadInvoiceFileList"
+                    :before-upload="handleBeforeUploadInvoice"
+                    :before-remove="handleUploadInvoiceBeforeRemove"
+                    :on-success="handleUploadInvoiceSuccess"
+                    :on-error="handleUploadInvoiceError"
+                >
+                    <el-icon class="el-icon--upload"><upload-filled></upload-filled></el-icon>
+                    <div class="el-upload__text">拖拽文件上传 <em>点击上传</em></div>
+                    <template #tip>
+                        <div class="el-upload__tip">pdf发票(1M以内)</div>
+                    </template>
+                </el-upload>
             </el-dialog>
         </div>
         
         <script>
             const App = {
                 setup(){
-                    const message = Vue.ref("Hello Element Plus");
                     const activeMenuIndex = Vue.ref('1');
+                    const startDate = new Date();
                     const invoiceSearch = Vue.ref({
-                            timeType: 'printTime',
-                            value1: ['2022-01', '2023-01'],
-                            value2: '',
-                            feeType: '',
+                            dateType: '0',
+                            date: [startDate.getFullYear()+'-01', startDate.getFullYear()+'-12'],
+                            purchaserName: '',
+                            used: '',
+                            feeType: [],
                         });
-                    const pageSize = Vue.ref(20);
-                    const currentPage = Vue.ref(1);
+                    const page = Vue.ref({
+                            currentPage: 1,
+                            pageSize: 5,
+                            totalRecords:0,
+                            totalPages:0     
+                        });
                     const activeNames = Vue.ref(['1','2']);
                     const invoiceStatus = Vue.ref([{
                             value: '1',
@@ -321,125 +538,463 @@
                             value: '0',
                             label: '未使用',
                         }]);
-                    const purchasers = Vue.ref([
-                            {
-                                name: '购买方(中国)网络技术有限公司',
-                                tax_number: '91320301MA1FQ5XXX',
-                                address: '广东省深圳市南山区深南大道',
-                                phone: '010-88888888',
-                                bank_name: '中国工商银行',
-                                bank_account: '62220231234567899999',
-                            },
-                        ]);
-                    const invoiceList = Vue.ref([
-                            {
-                                date: '2012/05/11',
-                                purchaser_name: '购买方(中国)网络技术有限公司',
-                                seller_name: '销售方信息服务有限公司',
-                                seller_tax_number: '91320301MA1FQ5000',
-                                service_type: '*经纪代理服务*机票代理服务',
-                                total: '10000.00',
-                                code: '011001700123',
-                                number: '93072888',
-                                check_code: '07963653756209149998',
-                                fee_type: '差旅费',
-                                used: '已使用',
-                                name: '差旅费',
-                                address: 'No. 189, Grove St, Los Angeles',
-                            },
-                            {
-                                date: '2012/05/11',
-                                purchaser_name: '购买方(中国)网络技术有限公司',
-                                seller_name: '销售方信息服务有限公司',
-                                seller_tax_number: '91320301MA1FQ5000',
-                                service_type: '*经纪代理服务*机票代理服务',
-                                total: '10000.00',
-                                code: '011001700123',
-                                number: '93072888',
-                                check_code: '07963653756209149998',
-                                fee_type: '差旅费',
-                                used: '已使用',
-                                name: '差旅费',
-                                address: 'No. 189, Grove St, Los Angeles',
-                            },
-                        ]);
-                    const feeTypes = Vue.ref(['交通','住宿','餐饮','通讯','办公','快递','其他']);
-                    const tagInput = Vue.ref()
-                    const inputValue = Vue.ref('');
-                    const inputVisible = Vue.ref(false);
-                    const purchaserDialogVisible = Vue.ref(false);
-                    const purchaserDialogTitle = Vue.ref('添加发票抬头')
-                    const purchaser = Vue.reactive({});
+                    
+                    /**{
+                            date: '2012/05/11',
+                            purchaser_name: '购买方(中国)网络技术有限公司',
+                            seller_name: '销售方信息服务有限公司',
+                            seller_tax_number: '91320301MA1FQ5000',
+                            service_type: '*经纪代理服务*机票代理服务',
+                            total: '10000.00',
+                            code: '011001700123',
+                            number: '93072888',
+                            check_code: '07963653756209149998',
+                            fee_type: '差旅费',
+                            used: '已使用',
+                            name: '差旅费',
+                            address: 'No. 189, Grove St, Los Angeles',
+                        }
+                    */
+                    const invoiceSelected = Vue.ref([])
+                    const invoiceList = Vue.ref([]);
+                    const feeTypes = Vue.ref([]);//'未分类','交通','住宿','餐饮','通讯','办公','快递','其他'
+                    const feeTypeInput = Vue.ref()
+                    const feeTypeInputValue = Vue.ref('');
+                    const feeTypeInputVisible = Vue.ref(false);
+                    
                     const handleMenuSelect = (key, keyPath) => {
                         activeMenuIndex.value = key;
                     };
-                    const handleClick = () => {
-                        ElementPlus.ElMessageBox.confirm(
-                            '点击按钮XX,是否确定XXX?',
-                            '系统提示',
-                            {
-                                confirmButtonText: '确定',
-                                cancelButtonText: '取消',
-                                type: 'warning',
+
+                    const handleFeeTypesQuery = () => {
+                        axios.get('/api/v1/config/feetypes').then(res => {
+                            if(res.data && res.data.value){
+                                feeTypes.value = res.data.value.split(',');
                             }
-                        )
-                            .then(() => {
-                                ElementPlus.ElMessage({
-                                type: 'success',
-                                message: 'XXX成功',
-                            })
-                            })
-                            .catch(() => {
-                                ElementPlus.ElMessage({
-                                type: 'info',
-                                message: 'XXXX取消',
-                            })
-                            })
+                        });
                     };
-                    const handleEdit = (index, row) => {
-                        console.log(index, row);
+                    const handleFeeTypeDelete = (tag) =>{
+                        if(tag === '未分类'){
+                            ElementPlus.ElMessage({type: 'warning', message: '默认类型不能删除',});
+                            return;
+                        }
+                        let temp = feeTypes.value.slice();
+                        temp.splice(temp.indexOf(tag), 1);
+                        let value = '';
+                        temp.forEach(item => value = value + item + ',' );
+                        value = value.substring(0, value.length - 1);
+                        axios.put("/api/v1/config/feetypes/"+value).then(res => {
+                            if(res.data.code === 200){
+                                feeTypes.value.splice(feeTypes.value.indexOf(tag), 1);
+                                ElementPlus.ElMessage({type: 'success', message: '删除成功',});
+                            }else{
+                                ElementPlus.ElMessage({type: 'error', message: '删除失败',});
+                            }
+                        }).catch(err => {
+                            ElementPlus.ElMessage({type: 'error', message: err.message,});
+                        });
+                        
                     };
-                    const handleChange = (val) => console.log(val);
-                    const handleClose = (tag) =>{
-                        feeTypes.value.splice(feeTypes.value.indexOf(tag), 1);
-                    };
-                    const showInput = () =>{
-                        inputVisible.value = true
+                    const showFeeTypeInput = () =>{
+                        feeTypeInputVisible.value = true
                         Vue.nextTick(() => {
-                            tagInput.value.focus()
+                            feeTypeInput.value.focus()
                         })
                     };
-                    const handleInputConfirm = () => {
-                        if (inputValue.value) {
-                            feeTypes.value.push(inputValue.value)
+                    const handleFeeTypeInputConfirm = () => {
+                        if (feeTypeInputValue.value) {
+                            let value = '';
+                            feeTypes.value.forEach(item => value = value + item + ',' );
+                            value = value + feeTypeInputValue.value;
+                            axios.put("/api/v1/config/feetypes/"+value).then(res => {
+                                if(res.data.code === 200){
+                                    feeTypes.value.push(feeTypeInputValue.value);
+                                }else{
+                                    ElementPlus.ElMessage({type: 'error', message: '添加失败',});
+                                }
+                                feeTypeInputVisible.value = false
+                                feeTypeInputValue.value = ''
+                            }).catch(err => {
+                                ElementPlus.ElMessage({type: 'error', message: err.message,});
+                            });
                         }
-                        inputVisible.value = false
-                        inputValue.value = ''
                     };
+                    const invoiceDialogVisible = Vue.ref(false);
+                    const invoiceDialogTitle = Vue.ref('');
+                    const invoiceOperate = Vue.ref('add');
+                    const invoice = Vue.ref();
+                    const invoiceForm = Vue.ref();
+                    const handleResetInvoiceQuery = () => {
+                        invoiceSearch.value = {
+                            dateType: '0',
+                            date: [startDate.getFullYear()+'-01', startDate.getFullYear()+'-12'],
+                            purchaserName: '',
+                            used: '',
+                            feeType: [],
+                        }
+                    };
+                    const handleInvoiceQuery = (refresh = false) => {
+                        let query = {
+                            dateType: invoiceSearch.value.dateType,
+                            startDate: invoiceSearch.value.date[0],
+                            endDate: invoiceSearch.value.date[1],
+                            purchaserName: invoiceSearch.value.purchaserName,
+                            used: invoiceSearch.value.used,
+                            feeType: invoiceSearch.value.feeType,
+                        };
+                        let invoiceQuery = {"query": query}
+                        invoiceQuery.page = page.value;
+                        if(refresh){
+                            invoiceQuery.page.currentPage = 1;
+                        }
+                        axios.post('/api/v1/invoice/list', date=JSON.stringify(invoiceQuery)).then(res => {
+                            invoiceList.value = res.data.invoices.invoiceList;
+                            page.value = res.data.invoices.page;
+                        }, err => {
+                            console.log(err);
+                        });
+                    };
+                    const handlePageSizeChange = (val) => {
+                        page.value.pageSize = val;
+                        handleInvoiceQuery();
+                    };
+                    const handleCurrentPageChange = (val) => {
+                        page.value.currentPage = val;
+                        handleInvoiceQuery();
+                    };
+                    const handleAddInvoice = (formInvoice) => {
+                        invoice.value = {type:'普通发票', feeType: '未分类', used: '未使用',};
+                        if(formInvoice){
+                            formInvoice.resetFields();
+                        } 
+                        invoiceDialogTitle.value = '添加发票';
+                        invoiceOperate.value = 'add';
+                        invoiceDialogVisible.value = true;
+                    };
+                    const handleInvoiceView = (row) => {
+                        window.open(window.location.origin +'/'+ row.filePath, '_blank')
+                    };
+                    const handleInvoiceEdit = (row) => {
+                        invoice.value = Object.assign({}, row);
+                        invoiceDialogTitle.value = '编辑发票';
+                        invoiceOperate.value = 'edit';
+                        invoiceDialogVisible.value = true;
+                    };
+                    const handelInvoiceCommit = (formInvoice) => {
+                        if(!formInvoice) return;
+                        formInvoice.validate((valid, values) => {
+                            if(valid && invoiceOperate.value === 'add'){
+                                axios.post('/api/v1/invoice', date=JSON.stringify(invoice.value)).then(res => {
+                                    if(res.data.code === 200){
+                                        ElementPlus.ElMessage({type: 'success', message: '添加发票成功',});
+                                        invoiceDialogVisible.value = false;
+                                        handleInvoiceQuery(true);
+                                    }else{
+                                        ElementPlus.ElMessage({type: 'error', message: res.data.message,});
+                                    }
+                                }, err => {
+                                    ElementPlus.ElMessage({type: 'error',message: err.message,});
+                                });
+                            }else if(valid && invoiceOperate.value === 'edit'){
+                                axios.put('/api/v1/invoice/'+invoice.value.id, date=JSON.stringify(invoice.value)).then(res => {
+                                    if(res.data.code === 200){
+                                        ElementPlus.ElMessage({type: 'success', message: '修改发票成功',});
+                                        invoiceDialogVisible.value = false;
+                                        handleInvoiceQuery(true);
+                                    }else{
+                                        ElementPlus.ElMessage({type: 'error', message: res.data.message,});
+                                    }
+                                }, err => {
+                                    ElementPlus.ElMessage({type: 'error',message: err.message,});
+                                });
+                            }
+                        });
+                    };
+                    const handleMultipleInvoiceDelete = () => {
+                        if(!invoiceSelected.value || invoiceSelected.value.length == 0){
+                            ElementPlus.ElMessage({type: 'warning', message: '请选择要删除的发票',});
+                            return;
+                        }
+                        let ids = '';
+                        invoiceSelected.value.forEach(item => ids = ids + item.id + ',' );
+                        ids = ids.substring(0, ids.length - 1);
+                        handleInvoiceDelete(ids);
+                    };
+                    const handleInvoiceDelete = (ids) => {
+                        ElementPlus.ElMessageBox.confirm('确定删除发票吗?', '系统提示', {confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',})
+                            .then(() => {
+                                axios.delete('/api/v1/invoice/'+ids).then(res => {
+                                    if(res.data.code === 200){
+                                        ElementPlus.ElMessage({type: 'success', message: '删除成功',});
+                                        handleInvoiceQuery();
+                                    }else{
+                                        ElementPlus.ElMessage({type: 'error', message: res.data.message,});
+                                    }
+                                }, err => {ElementPlus.ElMessage({type: 'error',message: err.message,}); });
+                            })
+                            .catch(() => { ElementPlus.ElMessage({type: 'info', message: '取消删除',}); })
+                    };
+                    const handleUpdateInvoiceStatus = (status) => {
+                        if(!invoiceSelected.value || invoiceSelected.value.length == 0){
+                            ElementPlus.ElMessage({type: 'warning', message: '请选择发票',});
+                            return;
+                        }
+                        let ids = '';
+                        invoiceSelected.value.forEach(item => ids = ids + item.id + ',');
+                        ids = ids.substring(0, ids.length - 1);
+                        axios.get('/api/v1/invoice/status/'+status+'/'+ids).then(res => {
+                            if(res.data.code === 200){
+                                ElementPlus.ElMessage({type: 'success', message: '操作成功',});
+                                handleInvoiceQuery();
+                            }else{
+                                ElementPlus.ElMessage({type: 'error', message: res.data.message,});
+                            }
+                        }, err => {ElementPlus.ElMessage({type: 'error',message: err.message,}); });
+                    }
+                    const handleUpdateInvoiceFeeType = (feeType) => {
+                        console.log(feeType);
+                        if(!invoiceSelected.value || invoiceSelected.value.length == 0){
+                            ElementPlus.ElMessage({type: 'warning', message: '请选择发票',});
+                            return;
+                        }
+                        let ids = '';
+                        invoiceSelected.value.forEach(item => ids = ids + item.id + ',');
+                        ids = ids.substring(0, ids.length - 1);
+                        axios.get('/api/v1/invoice/feetype/'+feeType+'/'+ids).then(res => {
+                            if(res.data.code === 200){
+                                ElementPlus.ElMessage({type: 'success', message: '操作成功',});
+                                handleInvoiceQuery();
+                            }else{
+                                ElementPlus.ElMessage({type: 'error', message: res.data.message,});
+                            }
+                        }, err => {ElementPlus.ElMessage({type: 'error',message: err.message,}); });
+                    }
+                    const handleSelectionChange = val => invoiceSelected.value = val;
+
+
+                    //导入发票
+                    const uploadInvoiceDialogVisible = Vue.ref(false);
+                    const uploadInvoiceDisabled = Vue.ref(false);
+                    const uploadInvoiceFileList = Vue.ref([]);
+                    const uploadInvoiceSuccess = Vue.ref(false);
+                    const handleUploadInvoiceError = (err, rawFile) => {
+                        let message = '上传失败'
+                        if(err.message && err.message.indexOf('message') > -1){
+                            message = JSON.parse(err.message).message;
+                        }
+                        rawFile.name = rawFile.name +','+ message
+                        ElementPlus.ElMessage({type: 'error', message: rawFile.name,});
+                        uploadInvoiceFileList.value.push(rawFile);
+                    };
+                    const handleUploadInvoiceSuccess = (res, file) => uploadInvoiceSuccess.value = true;
+
+                    const handleUploadInvoiceBeforeRemove = (uploadFile, uploadFiles) => {
+                        if(uploadFile.status === 'success'){
+                            ElementPlus.ElMessage({type: 'warning', message: '已上传的文件不能删除',});
+                            return false;
+                        }else{
+                            return true;
+                        }
+                        
+                    };
+                    const handleBeforeUploadInvoice = (rawFile) => {
+                        if (rawFile.type !== 'application/pdf') {
+                            ElementPlus.ElMessage({type: 'error', message: '仅支持pdf文件',});
+                            return false
+                        } else if (rawFile.size / 1024 / 1024 > 1) {
+                            ElementPlus.ElMessage({type: 'error', message: '文件不能大于2MB',});
+                            return false
+                        }
+                        return true
+                    };
+                    const handleInvoiceDialogClose = () => {
+                        uploadInvoiceFileList.value = [];
+                        uploadInvoiceDialogVisible.value = false;
+                        if(uploadInvoiceSuccess.value){
+                            handleInvoiceQuery(true);
+                            uploadInvoiceSuccess.value = false;
+                        }
+                    }
+                    
+                    //导出
+                    const handleExportExcel = () => {
+                        if(invoiceSelected.value && invoiceSelected.value.length > 0){
+                            let ids = '';
+                            invoiceSelected.value.forEach(item => ids = ids + item.id + ',');
+                            ids = ids.substring(0, ids.length - 1);
+                            window.open('/api/v1/invoice/exportexcel/'+ids);
+                        }else{
+                            ElementPlus.ElMessage({type: 'warning', message: '请选择发票',});
+                        }
+                    }
+                    const handleExportPdf = () => {
+                        if(invoiceSelected.value && invoiceSelected.value.length > 0){
+                            let ids = '';
+                            invoiceSelected.value.forEach(item => ids = ids + item.id + ',');
+                            ids = ids.substring(0, ids.length - 1);
+                            window.open('/api/v1/invoice/exportpdf/'+ids);
+                        }else{
+                            ElementPlus.ElMessage({type: 'warning', message: '请选择发票',});
+                        }
+                    }
+
+                    //发票抬头
+                    const purchaserDialogVisible = Vue.ref(false);
+                    const purchaserDialogTitle = Vue.ref('添加发票抬头')
+                    const purchaser = Vue.ref();
+                    const purchaserOperate = Vue.ref('');
+                    const purchaserForm = Vue.ref();
+                    const purchasers = Vue.ref([]);
+                            // {
+                            //     name: '购买方(中国)网络技术有限公司',
+                            //     taxNumber: '91320301MA1FQ5XXXX',
+                            //     address: '广东省深圳市南山区深南大道',
+                            //     phone: '010-88888888',
+                            //     bankName: '中国工商银行',
+                            //     bankAccount: '62220231234567899999',
+                            // },
+                    const handlePurchaserQuery = () => {
+                        axios.post('/api/v1/purchaser/list').then(res => {
+                            purchasers.value = res.data.purchaserList;
+                        }, err => {
+                            console.log(err);
+                        });
+                    };
+                    const handleAddPurchaser = (formPurchaser) => {
+                        purchaser.value = {};
+                        if(formPurchaser){
+                            formPurchaser.resetFields();
+                        }
+                        purchaserDialogTitle.value = '添加发票抬头';
+                        purchaserOperate.value = 'add';
+                        purchaserDialogVisible.value = true;
+                    };
+                    const handlePurchaserEdit = (item) => {
+                        purchaserDialogTitle.value = '修改发票抬头';
+                        purchaserOperate.value = 'edit';
+                        // 此处不查询数据库，直接使用传入的数据
+                        purchaser.value = Object.assign({}, item);
+                        purchaserDialogVisible.value = true;
+                    };
+                    const handlePurchaserDelete = (item) => {
+                        ElementPlus.ElMessageBox.confirm('确定删除发票抬头吗?', '系统提示', {confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',})
+                            .then(() => {
+                                axios.delete('/api/v1/purchaser/'+item.id).then(res => {
+                                    if(res.data.code === 200){
+                                        ElementPlus.ElMessage({type: 'success', message: '删除成功',});
+                                        handlePurchaserQuery();
+                                    }else{
+                                        ElementPlus.ElMessage({type: 'error', message: res.data.message,});
+                                    }
+                                }, err => {ElementPlus.ElMessage({type: 'error',message: err.message,}); });
+                            })
+                            .catch(() => { ElementPlus.ElMessage({type: 'info', message: '取消删除',}); })
+                    };
+                    const handelPurchaserCommit = (formPurchaser) => {
+                        if(!formPurchaser){
+                            return;
+                        }
+                        formPurchaser.validate((valid, fields) => {
+                            if (valid) {
+                                console.log('submit!')
+                                if(purchaserOperate.value === 'add'){
+                                    axios.post('/api/v1/purchaser', date=JSON.stringify(purchaser.value)).then(res => {
+                                        if(res.data.code === 200){
+                                            ElementPlus.ElMessage({type: 'success', message: '添加成功',});
+                                            purchaserDialogVisible.value = false;
+                                            handlePurchaserQuery();
+                                        }else{
+                                            ElementPlus.ElMessage({type: 'error', message: res.data.message,});
+                                        }
+                                    }, err => {ElementPlus.ElMessage({type: 'error',message: err.message,}); });
+                                }else if(purchaserOperate.value === 'edit'){
+                                    axios.put('/api/v1/purchaser/'+purchaser.value.id, date=JSON.stringify(purchaser.value)).then(res => {
+                                        if(res.data.code === 200){
+                                            ElementPlus.ElMessage({type: 'success', message: '修改成功',});
+                                            purchaserDialogVisible.value = false;
+                                            handlePurchaserQuery();
+                                        }else{
+                                            ElementPlus.ElMessage({type: 'error', message: res.data.message,});
+                                        }
+                                    }, err => {ElementPlus.ElMessage({type: 'error',message: err.message,}); });
+                                }
+                            }
+                        })
+                    };
+                    const handelPurchaserCancel = () => {
+                        purchaserDialogVisible.value = false;
+                    }
+
+                    Vue.onMounted(() => {
+                        handleInvoiceQuery();
+                        handlePurchaserQuery();
+                        handleFeeTypesQuery();
+                    });
+
                     return {
-                        message,
                         activeMenuIndex,
                         invoiceSearch,
-                        pageSize,
-                        currentPage,
+                        page,
                         activeNames,
                         invoiceStatus,
                         purchasers,
                         invoiceList,
-                        feeTypes,
-                        tagInput,
-                        inputValue,
-                        inputVisible,
+                        invoice,
+                        invoiceOperate,
+                        invoiceDialogTitle,
+                        invoiceDialogVisible,
+                        invoiceForm,
+
+                        uploadInvoiceDialogVisible,
+                        uploadInvoiceDisabled,
+                        uploadInvoiceFileList,
+
                         purchaserDialogVisible,
                         purchaser,
                         purchaserDialogTitle,
+                        invoiceSelected,
+                        purchaserDialogVisible,
+                        purchaserOperate,
+                        purchaserForm,
+
+                        feeTypes,
+                        feeTypeInput,
+                        feeTypeInputValue,
+                        feeTypeInputVisible,
+
                         handleMenuSelect,
-                        handleClick,
-                        handleEdit,
-                        handleChange,
-                        handleClose,
-                        showInput,
-                        handleInputConfirm,
+                        handleFeeTypeDelete,
+                        showFeeTypeInput,
+                        handleFeeTypeInputConfirm,
+
+                        handleInvoiceQuery,
+                        handleResetInvoiceQuery,
+                        handlePageSizeChange,
+                        handleCurrentPageChange,
+                        handleInvoiceDelete,
+                        handleMultipleInvoiceDelete,
+                        handleSelectionChange,
+                        handleUpdateInvoiceStatus,
+                        handleUpdateInvoiceFeeType,
+                        handleAddInvoice,
+                        handleInvoiceView,
+                        handleInvoiceEdit,
+                        handelInvoiceCommit,
+                        handleUploadInvoiceBeforeRemove,
+                        handleUploadInvoiceError,
+                        handleUploadInvoiceSuccess,
+                        handleBeforeUploadInvoice,
+                        handleInvoiceDialogClose,
+
+                        handleExportExcel,
+                        handleExportPdf,
+
+                        handleAddPurchaser,
+                        handlePurchaserEdit,
+                        handlePurchaserDelete,
+                        handelPurchaserCommit,
+                        handelPurchaserCancel,
+                        handlePurchaserQuery,
                     }
                 },
             };
