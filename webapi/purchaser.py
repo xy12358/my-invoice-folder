@@ -15,6 +15,7 @@ async def list():
 # 新增购买方
 @router.post("", response_model=Response)
 async def add(purchaserCreateModel: PurchaserCreateModel = Body(...)):
+    purchaserCreateModel.taxNumber = purchaserCreateModel.taxNumber.upper() if purchaserCreateModel.taxNumber else ''
     return purchaserDao.add(purchaserCreateModel)
 
 # 删除购买方

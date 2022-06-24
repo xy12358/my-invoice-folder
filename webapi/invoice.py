@@ -1,5 +1,5 @@
 from io import BytesIO
-import os,aiofiles
+import os,aiofiles,re
 from pathlib import Path as FilePath
 import openpyxl
 from PyPDF4 import PdfFileMerger
@@ -12,16 +12,31 @@ from typing import Optional
 from model import Response
 from model.invoiceModel import InvoiceCreateModel, InvoiceUpdateModel, InvoiceList, InvoiceQueryParams,InvoiceDetailModel
 from dao.invoiceDao import InvoiceDao
+from dao.purchaserDao import PurchaserDao
 from invoiceParser import pdfParser
 
 router = APIRouter()
 invoiceDao = InvoiceDao()
+purchaserDao = PurchaserDao()
 
 class InvoiceListResponse(Response):
     invoices: Optional[InvoiceList] = None
 
 class InvoiceDetailResponse(Response):
     invoice: Optional[InvoiceDetailModel] = None
+
+def checkPurchaser(invoice: InvoiceCreateModel) -> bool:
+    purchasers = purchaserDao.list()
+    # 没有添加抬头，则不校验抬头
+    if not purchasers.purchaserList:
+        return True
+    for purchaser in purchasers.purchaserList:
+        if purchaser.name and re.sub('[\(\)（）-]','',purchaser.name) == re.sub('[\(\)（）-]','',invoice.purchaserName):
+            if purchaser.taxNumber and purchaser.taxNumber == invoice.purchaserTaxNumber:
+                return True
+            elif not purchaser.taxNumber:
+                return True 
+    return False
 
 @router.get("/{id}", response_model=InvoiceDetailResponse)
 async def getInvoice(id: str = Path(..., title='id of invoice', regex="^\w{25}$")):
@@ -51,6 +66,9 @@ async def updateFeeType(feeType: str = Path(..., regex="^\S+$"), id: str = Path(
 # 新增发票
 @router.post("/", response_model=Response) 
 async def add(invoice: InvoiceCreateModel = Body(...)):
+    invoice.purchaserTaxNumber = invoice.purchaserTaxNumber.upper() if invoice.purchaserTaxNumber else ''
+    if not checkPurchaser(invoice):
+        return Response(code=500, message='抬头不匹配，请确认抬头是否正确，或者在设置中添加抬头')
     invoice.totalAmount = int(round(invoice.totalAmount*100))
     invoice.totalTax = int(round(invoice.totalTax*100))
     invoice.taxRate = int(round(invoice.taxRate*100))
@@ -90,7 +108,10 @@ async def upload(file: UploadFile = File(..., description="文件"), response: F
 
         # 解析发票文件
         invoice = pdfParser.read_invoice(saveName)
-        logger.info(invoice.__dict__)
+        # 校验抬头
+        if not checkPurchaser(invoice):
+            os.remove(saveName)
+            return Response(code=500, message='抬头不匹配，请确认抬头是否正确，或者在设置中添加抬头')
         # 保存到数据库
         if invoice.number and invoice.purchaserName and invoice.total>0:
             invoice.totalAmount = int(round(invoice.totalAmount*100))

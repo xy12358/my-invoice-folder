@@ -76,7 +76,7 @@
                                     />
                                 </el-form-item>
                                 <el-form-item label="">
-                                    <el-select v-model="invoiceSearch.purchaserName" clearable placeholder="公司名">
+                                    <el-select v-model="invoiceSearch.purchaserName" clearable placeholder="发票抬头">
                                         <el-option
                                         v-for="item in purchasers"
                                         :key="item.name"
@@ -203,14 +203,11 @@
                                             {{ scope.row.used==='1'? '已使用' : '未使用' }}
                                         </template>
                                     </el-table-column>
-                                    <!-- <el-table-column prop="address" label="Address"></el-table-column> -->
                                     <el-table-column label="操作" width="135">
                                         <template #default="scope">
                                             <el-button type="primary" title="修改" circle @click="handleInvoiceEdit(scope.row)"><el-icon><edit></edit></el-icon></el-button>
-                                            <el-button type="danger" title="删除" circle @click="handleInvoiceDelete(scope.row)"><el-icon><delete></delete></el-icon></el-button>
+                                            <el-button type="danger" title="删除" circle @click="handleInvoiceDelete(scope.row.id)"><el-icon><delete></delete></el-icon></el-button>
                                             <el-button v-if="scope.row.filePath!==''" type="success" title="查看" circle @click="handleInvoiceView(scope.row)"><el-icon><Document></Document></el-icon></el-button>
-                                            <!-- <el-icon color="#409eff" size="20" title="修改" v-on:click="handleInvoiceEdit(scope.row)"><edit></edit></el-icon> -->
-                                            <!-- <el-icon color="#f56c6c" size="20" title="删除" style="padding:0 10px" v-on:click="handleInvoiceDelete(scope.row)"><delete></delete></el-icon> -->
                                         </template>
                                     </el-table-column>
                                 </el-table>
@@ -219,7 +216,7 @@
                                 <el-pagination
                                   v-model:current-page="page.currentPage"
                                   v-model:page-size="page.pageSize"
-                                  :page-sizes="[5, 10, 20, 50]"
+                                  :page-sizes="[10, 20, 50]"
                                   small="small"
                                   background="background"
                                   layout="total, sizes, prev, pager, next"
@@ -525,7 +522,7 @@
                         });
                     const page = Vue.ref({
                             currentPage: 1,
-                            pageSize: 5,
+                            pageSize: 10,
                             totalRecords:0,
                             totalPages:0     
                         });
@@ -846,7 +843,7 @@
                     const purchaserForm = Vue.ref();
                     const purchasers = Vue.ref([]);
                             // {
-                            //     name: '购买方(中国)网络技术有限公司',
+                            //     name: '测试公司',
                             //     taxNumber: '91320301MA1FQ5XXXX',
                             //     address: '广东省深圳市南山区深南大道',
                             //     phone: '010-88888888',
