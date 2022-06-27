@@ -4,6 +4,7 @@ from model import Response
 from model.invoiceModel import InvoiceModel,InvoiceCreateModel,InvoiceUpdateModel,InvoiceQueryModel,InvoiceQueryParams,InvoiceList,InvoiceDetailModel
 from sqlalchemy import func
 from sqlalchemy.orm.query import Query
+import os
 
 
 class InvoiceDao(BaseDao):
@@ -67,18 +68,29 @@ class InvoiceDao(BaseDao):
 
         return res
 
+    # 根据发票代码和发票号码查询发票，判断是否已经存在
+    def countByCodeAndNumber(self, code: str, number: str) -> str:
+        res = self._session.query(InvoiceModel.id).filter(InvoiceModel.code == code, InvoiceModel.number == number).first()
+        return res.id if res else None
+
     # 删除发票
     def delete(self, id: str) -> Response:
         logger.info(f'删除发票，id={id}')
         ids = id.split(',')
         try:
-            rows = self._session.query(InvoiceModel).filter(InvoiceModel.id.in_(ids)).delete(synchronize_session=False)
+            f = self._session.query(InvoiceModel).filter(InvoiceModel.id.in_(ids))
+            invoices = f.all()
+            for invoice in invoices:
+                # 删除发票文件
+                if invoice and invoice.filePath and os.path.exists(invoice.filePath):
+                    os.remove(invoice.filePath)
+            rows = f.delete(synchronize_session=False)
             self._session.commit()
             logger.info(f'删除发票成功，删除了{rows}条记录')
             return Response(code=200, message='ok')
         except Exception as e:
             self._session.rollback()
-            return Response(code=500, message='delete failed')
+            return Response(code=500, message='删除发票失败')
 
 
     # 更新发票状态
@@ -92,7 +104,7 @@ class InvoiceDao(BaseDao):
             return Response(code=200, message='ok')
         except Exception as e:
             self._session.rollback()
-            return Response(code=500, message='update failed')
+            return Response(code=500, message='更新发票状态失败')
 
 
     # 更新发票费用类型
@@ -106,11 +118,13 @@ class InvoiceDao(BaseDao):
             return Response(code=200, message='ok')
         except Exception as e:
             self._session.rollback()
-            return Response(code=500, message='update failed')
+            return Response(code=500, message='更新发票费用类型失败')
 
     def add(self, invoiceCreateModel: InvoiceCreateModel, filePath: str = '', addType: str = '0') -> Response:
         logger.info(f'添加发票，发票信息={invoiceCreateModel}')
         try:
+            if self.countByCodeAndNumber(invoiceCreateModel.code, invoiceCreateModel.number):
+                return Response(code=500, message='发票已存在')
             invoice = InvoiceModel(**invoiceCreateModel.dict())
             invoice.filePath = filePath
             invoice.addType = addType
@@ -119,11 +133,13 @@ class InvoiceDao(BaseDao):
             return Response(code=200, message='ok')
         except Exception as e:
             self._session.rollback()
-            return Response(code=500, message='add failed')
+            return Response(code=500, message='添加发票失败')
 
     def update(self, invoiceUpdateModel: InvoiceUpdateModel) -> Response:
         logger.info(f'更新发票，发票信息={invoiceUpdateModel}')
         try:
+            if invoiceUpdateModel.id != self.countByCodeAndNumber(invoiceUpdateModel.code, invoiceUpdateModel.number):
+                return Response(code=500, message='发票已存在')
             invoice = invoiceUpdateModel.dict()
             invoice.pop('id')
             self._session.query(InvoiceModel).filter_by(id=invoiceUpdateModel.id).update(invoice)
@@ -131,4 +147,4 @@ class InvoiceDao(BaseDao):
             return Response(code=200, message='ok')
         except Exception as e:
             self._session.rollback()
-            return Response(code=500, message='update failed')
+            return Response(code=500, message='更新发票失败')

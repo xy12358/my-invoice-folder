@@ -1,5 +1,6 @@
+# -*- encoding: utf-8 -*-
 from io import BytesIO
-import os,aiofiles,re
+import os,aiofiles,re,sys
 from pathlib import Path as FilePath
 import openpyxl
 from PyPDF4 import PdfFileMerger
@@ -66,9 +67,9 @@ async def updateFeeType(feeType: str = Path(..., regex="^\S+$"), id: str = Path(
 # 新增发票
 @router.post("/", response_model=Response) 
 async def add(invoice: InvoiceCreateModel = Body(...)):
-    invoice.purchaserTaxNumber = invoice.purchaserTaxNumber.upper() if invoice.purchaserTaxNumber else ''
+    invoice.purchaserTaxNumber = invoice.purchaserTaxNumber.upper()
     if not checkPurchaser(invoice):
-        return Response(code=500, message='抬头不匹配，请确认抬头是否正确，或者在设置中添加抬头')
+        return Response(code=500, message='抬头不匹配，请确认抬头是否正确，或在设置中添加抬头')
     invoice.totalAmount = int(round(invoice.totalAmount*100))
     invoice.totalTax = int(round(invoice.totalTax*100))
     invoice.taxRate = int(round(invoice.taxRate*100))
@@ -90,14 +91,12 @@ async def update(id: str = Path(..., title='id of invoice', regex="^\w{25}$"), i
 async def upload(file: UploadFile = File(..., description="文件"), response: FResponse = FResponse()):
     try:
         filename = file.filename
-        print(filename)
         if not filename.endswith('.pdf'):
             return Response(code=500, message='文件类型错误')
 
         # 保存发票文件
         filetype = filename.split('.')[-1]
         filename = filename.replace('.','').replace(filetype, '')
-        print(filetype)
         saveName = FilePath(appConfig.uploadPath, f'{filename}.{filetype}')
         rename = 1
         while os.path.exists(saveName):
@@ -111,7 +110,7 @@ async def upload(file: UploadFile = File(..., description="文件"), response: F
         # 校验抬头
         if not checkPurchaser(invoice):
             os.remove(saveName)
-            return Response(code=500, message='抬头不匹配，请确认抬头是否正确，或者在设置中添加抬头')
+            return Response(code=500, message='抬头不匹配，请确认抬头是否正确，或在设置中添加抬头')
         # 保存到数据库
         if invoice.number and invoice.purchaserName and invoice.total>0:
             invoice.totalAmount = int(round(invoice.totalAmount*100))
@@ -119,7 +118,11 @@ async def upload(file: UploadFile = File(..., description="文件"), response: F
             invoice.taxRate = int(round(invoice.taxRate*100))
             invoice.total = int(round(invoice.total*100))
             invoice.date = invoice.date.replace('年', '-').replace('月', '-').replace('日', '')
-            invoiceDao.add(invoice, saveName.__str__(),'1')
+            res = invoiceDao.add(invoice, saveName.__str__(),'1')
+            # 如果存储数据库失败，删除文件
+            if res.code != 200:
+                os.remove(saveName)
+                return res
         else:
             os.remove(saveName)
             return Response(code=500, message='发票文件解析失败')
@@ -169,6 +172,7 @@ async def exportPdf(id: str = Path(..., title='ids of invoice', regex="^\w{25}(,
         }
         return StreamingResponse(output, headers=headers)
     except Exception as e:
+        logger.error(e)
         logger.error('合并pdf失败', e)
         return('合并pdf失败')
 

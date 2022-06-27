@@ -749,7 +749,6 @@
                         }, err => {ElementPlus.ElMessage({type: 'error',message: err.message,}); });
                     }
                     const handleUpdateInvoiceFeeType = (feeType) => {
-                        console.log(feeType);
                         if(!invoiceSelected.value || invoiceSelected.value.length == 0){
                             ElementPlus.ElMessage({type: 'warning', message: '请选择发票',});
                             return;
@@ -893,7 +892,6 @@
                         }
                         formPurchaser.validate((valid, fields) => {
                             if (valid) {
-                                console.log('submit!')
                                 if(purchaserOperate.value === 'add'){
                                     axios.post('/api/v1/purchaser', date=JSON.stringify(purchaser.value)).then(res => {
                                         if(res.data.code === 200){
