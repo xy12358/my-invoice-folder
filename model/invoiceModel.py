@@ -1,4 +1,6 @@
 # -*- encoding: utf-8 -*-
+# author: yxin
+
 from random import randint
 import uuid
 from datetime import datetime
@@ -64,14 +66,14 @@ class InvoiceCreateModel(BaseModel):
     type: str = Field("普通发票", title="发票类型")
     number: str = Field("", title="发票号码", regex="^[0-9]*$")
     date: str = Field("", title="开票日期", regex="^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
-    machineNumber: str = Field("", title="机器编号", regex="^[0-9]*$")
-    code: str = Field("", title="发票代码", regex="^[0-9]*$")
-    checkCode: str = Field("", title="校验码", regex="^[0-9]*$")
+    machineNumber: str = Field("", title="机器编号", regex="^.{0}$|^[0-9]*$")
+    code: str = Field("", title="发票代码", regex="^.{0}$|^[0-9]*$")
+    checkCode: str = Field("", title="校验码", regex="^.{0}$|^[0-9]*$")
     payee: str = Field("", title="收款人")
     reviewer: str = Field("", title="复核")
     drawer: str = Field("", title="开票人")
     purchaserName: str = Field("", title="购买方名称")
-    purchaserTaxNumber: str = Field("", title="纳税人识别号", regex="^[0-9]|[a-z]|[A-Z]*$")
+    purchaserTaxNumber: str = Field("", title="纳税人识别号", regex="^.{0}$|^[0-9]|[a-z]|[A-Z]*$")
     purchaserAddress: str = Field("", title="地址电话")
     purchaserBank: str = Field("", title="开户行及账号")
     password: str = Field("", title="密码")
@@ -81,7 +83,7 @@ class InvoiceCreateModel(BaseModel):
     taxRate: float = Field(0, title="税率")
     total: float = Field(0, title="价税合计")
     sellerName: str = Field("", title="销售方名称")
-    sellerTaxNumber: str = Field("", title="纳税人识别号", regex="^[0-9]|[a-z]|[A-Z]*$")
+    sellerTaxNumber: str = Field("", title="纳税人识别号", regex="^.{0}$|^[0-9]|[a-z]|[A-Z]*$")
     sellerAddress: str = Field("", title="地址电话")
     sellerBank: str = Field("", title="开户行及账号")
     remark: str = Field("", title="备注")

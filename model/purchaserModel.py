@@ -1,4 +1,6 @@
 # -*- encoding: utf-8 -*-
+# author: yxin
+
 from random import randint
 import uuid
 from datetime import datetime

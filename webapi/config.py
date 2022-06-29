@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Body, Path
+# -*- encoding: utf-8 -*-
+# author: yxin
+
+from fastapi import APIRouter, Path
 from model import Response
 from model.configModel import ConfigDetailModel
 from dao.configDao import ConfigDao

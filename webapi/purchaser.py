@@ -1,3 +1,6 @@
+# -*- encoding: utf-8 -*-
+# author: yxin
+
 from fastapi import APIRouter, Body, Path
 from model import Response
 from model.purchaserModel import PurchaserUpdateModel,PurchaserCreateModel,PurchaserListModel

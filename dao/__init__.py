@@ -1,3 +1,6 @@
+# -*- encoding: utf-8 -*-
+# author: yxin
+
 from model import engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.query import Query

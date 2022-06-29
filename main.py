@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+# author: yxin
 import uvicorn
 from multiprocessing import freeze_support
 from multiprocessing import Process

@@ -1,3 +1,6 @@
+# -*- encoding: utf-8 -*-
+# author: yxin
+
 from random import randint
 from typing import Callable, Optional
 from fastapi import FastAPI,Request

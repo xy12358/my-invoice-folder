@@ -1,3 +1,6 @@
+# -*- encoding: utf-8 -*-
+# author: yxin
+
 from loguru import logger
 import pdfplumber
 from PyPDF4 import PdfFileMerger
