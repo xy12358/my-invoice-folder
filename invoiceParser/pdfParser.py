@@ -32,7 +32,7 @@ def read_invoice(pdf_file: any) -> "InvoiceCreateModel":
             invoice.code = re.search(r'发票代码(:|：)(\d+)', text).group(2)
             invoice.checkCode = re.search(r'校验码(:|：)(\d+)', text).group(2)
             # 提取发票表格下方内容，全在一行里
-            match = re.search(r'.*收款人(:|：)(.*)复核(:|：)(.*)开票人(:|：)(.*)销售', text)
+            match = re.search(r'.*收款人(:|：)(.*)复核(:|：)(.*)开票人(:|：)(.*)(销售)?', text)
             invoice.payee = match.group(2)
             invoice.reviewer = match.group(4)
             invoice.drawer = match.group(6)
@@ -56,10 +56,10 @@ def read_invoice(pdf_file: any) -> "InvoiceCreateModel":
                 # 货物名
                 invoice.serviceType = table[1][0].split("\n")[1].replace(" ", "")
                 # 合计金额、税额
-                invoice.totalAmount = table[1][8].split("\n")[-1].replace("￥", "").replace(" ", "").replace(",", "")
+                invoice.totalAmount = table[1][8].split("\n")[-1].replace("¥","").replace("￥", "").replace(" ", "").replace(",", "")
                 invoice.totalAmount = float(invoice.totalAmount)
                 # 注意有的发票税额为0是'*',无法直接转成数值
-                invoice.totalTax = table[1][10].split("\n")[-1].replace("￥", "").replace(" ", "").replace("*", "").replace('＊','').replace(",", "")
+                invoice.totalTax = table[1][10].split("\n")[-1].replace("¥","").replace("￥", "").replace(" ", "").replace("*", "").replace('＊','').replace(",", "")
                 try:
                     invoice.totalTax = float(invoice.totalTax) if invoice.totalTax else 0
                 except:
@@ -74,7 +74,7 @@ def read_invoice(pdf_file: any) -> "InvoiceCreateModel":
                     invoice.taxRate = 0
                 # invoice.taxRate = invoice.totalTax / invoice.totalAmount
                 # 价税合计,解析或计算
-                invoice.total = re.search(r'.+￥(.+)', table[2][2]).group(1).replace(" ", "").replace(",", "")
+                invoice.total = re.search(r'.+[￥|¥](.+)', table[2][2]).group(1).replace(" ", "").replace(",", "")
                 invoice.total = float(invoice.total)
                 # invoice.total = invoice.totalTax + invoice.totalAmount
                 # 销售方
